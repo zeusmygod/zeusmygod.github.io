@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>桌球對打遊戲</title>
+    <style>
+      canvas {
+        border: 1px solid black;
+        display: block;
+        margin: 0 auto;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="gameCanvas" width="1000" height="600"></canvas>
+    <script>
+      const canvas = document.getElementById("gameCanvas");
+      const ctx = canvas.getContext("2d");
+
+      // 遊戲物件
+      const ball = {
+        x: canvas.width / 2,
+        y: canvas.height / 2,
+        radius: 15,
+        dx: 4,
+        dy: 4,
+      };
+
+      const paddleHeight = 150;
+      const paddleWidth = 15;
+
+      const leftPaddle = {
+        x: 0,
+        y: canvas.height / 2 - paddleHeight / 2,
+        speed: 6,
+      };
+
+      const rightPaddle = {
+        x: canvas.width - paddleWidth,
+        y: canvas.height / 2 - paddleHeight / 2,
+        speed: 8,
+      };
+
+      let leftScore = 0;
+      let rightScore = 0;
+
+      // 按鍵狀態
+      let wPressed = false;
+      let sPressed = false;
+      let upPressed = false;
+      let downPressed = false;
+
+      // 控制球拍
+      document.addEventListener("keydown", keyDownHandler);
+      document.addEventListener("keyup", keyUpHandler);
+
+      function keyDownHandler(e) {
+        if (e.key === "w" || e.key === "W") wPressed = true;
+        if (e.key === "s" || e.key === "S") sPressed = true;
+        if (e.key === "ArrowUp") upPressed = true;
+        if (e.key === "ArrowDown") downPressed = true;
+      }
+
+      function keyUpHandler(e) {
+        if (e.key === "w" || e.key === "W") wPressed = false;
+        if (e.key === "s" || e.key === "S") sPressed = false;
+        if (e.key === "ArrowUp") upPressed = false;
+        if (e.key === "ArrowDown") downPressed = false;
+      }
+
+      function drawBall() {
+        ctx.beginPath();
+        ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
+        ctx.fillStyle = "green";
+        ctx.fill();
+        ctx.closePath();
+      }
+
+      function drawPaddleLeft(x, y) {
+        ctx.fillStyle = "Red";
+        ctx.fillRect(x, y, paddleWidth, paddleHeight);
+      }
+
+      function drawPaddleRight(x, y) {
+        ctx.fillStyle = "blue";
+        ctx.fillRect(x, y, paddleWidth, paddleHeight);
+      }
+
+      function drawScore() {
+        ctx.font = "50px Arial";
+        ctx.fillStyle = "black";
+        ctx.fillText(leftScore, canvas.width / 4, 50);
+        ctx.fillText(rightScore, (3 * canvas.width) / 4, 50);
+      }
+
+      function collision(paddle) {
+        return ball.y > paddle.y && ball.y < paddle.y + paddleHeight;
+      }
+
+      function movePaddles() {
+        if (wPressed && leftPaddle.y > 0) {
+          leftPaddle.y -= leftPaddle.speed;
+        }
+        if (sPressed && leftPaddle.y < canvas.height - paddleHeight) {
+          leftPaddle.y += leftPaddle.speed;
+        }
+        if (upPressed && rightPaddle.y > 0) {
+          rightPaddle.y -= rightPaddle.speed;
+        }
+        if (downPressed && rightPaddle.y < canvas.height - paddleHeight) {
+          rightPaddle.y += rightPaddle.speed;
+        }
+      }
+
+      let countdown = 3;
+
+      function startCountdown() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.font = "100px Arial";
+        ctx.fillStyle = "black";
+        ctx.textAlign = "center";
+        ctx.fillText(countdown, canvas.width / 2, canvas.height / 2);
+
+        if (countdown > 0) {
+          countdown--;
+          setTimeout(startCountdown, 1000);
+        } else {
+          gameLoop();
+        }
+      }
+
+      function gameLoop() {
+        countdown = 3; // 重置倒數，為下一次遊戲做準備
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        drawBall();
+        drawPaddleLeft(leftPaddle.x, leftPaddle.y);
+        drawPaddleRight(rightPaddle.x, rightPaddle.y);
+        drawScore();
+
+        movePaddles();
+
+        // 球的移動
+        ball.x += ball.dx;
+        ball.y += ball.dy;
+
+        // 上下邊界碰撞檢測
+        if (ball.y + ball.radius > canvas.height || ball.y - ball.radius < 0) {
+          ball.dy = -ball.dy;
+        }
+
+        // 左右球拍碰撞檢測
+        if (
+          (ball.dx < 0 &&
+            ball.x - ball.radius < paddleWidth &&
+            collision(leftPaddle)) ||
+          (ball.dx > 0 &&
+            ball.x + ball.radius > canvas.width - paddleWidth &&
+            collision(rightPaddle))
+        ) {
+          ball.dx = -ball.dx;
+        }
+
+        // 得分和重置
+        if (ball.x + ball.radius > canvas.width) {
+          leftScore++;
+          resetBall();
+        } else if (ball.x - ball.radius < 0) {
+          rightScore++;
+          resetBall();
+        }
+
+        // 檢查遊戲是否結束
+        if (leftScore >= 11 || rightScore >= 11) {
+          const winner = leftScore >= 11 ? "左方" : "右方";
+          alert(winner + "獲勝！遊戲結束。");
+          leftScore = rightScore = 0;
+          resetBall();
+          startCountdown(); // 重新開始遊戲，從倒數開始
+        } else {
+          requestAnimationFrame(gameLoop);
+        }
+      }
+
+      function resetBall() {
+        ball.x = canvas.width / 2;
+        ball.y = canvas.height / 2;
+        ball.dx = -ball.dx;
+        ball.dy = Math.random() > 0.5 ? 4 : -4; // 隨機垂直方向
+      }
+
+      startCountdown();
+    </script>
+  </body>
+</html>
